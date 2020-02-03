@@ -1,17 +1,19 @@
-source "https://rubygems.org"
+# frozen_string_literal: true
 
-branch = 'master'
-gem "solidus", github: "solidusio/solidus", branch: branch
-gem "solidus_auth_devise", github: "solidusio/solidus_auth_devise"
-gem 'avatax-ruby'
+source 'https://rubygems.org'
 
-group :test, :development do
-  gem "pry"
+solidus_branch = ENV.fetch('SOLIDUS_BRANCH', 'master')
+
+gem 'solidus', github: 'solidusio/solidus', branch: solidus_branch
+gem 'solidus_auth_devise'
+
+case ENV['DB']
+when 'postgres'
+  gem 'pg'
+when 'mysql'
+  gem 'mysql2'
+else
+  gem 'sqlite3'
 end
-
-gem "rails-controller-testing", group: :test
-
-gem 'pg', '~> 0.21'
-gem 'mysql2'
 
 gemspec

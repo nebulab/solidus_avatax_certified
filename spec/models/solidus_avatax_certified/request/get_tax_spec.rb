@@ -1,14 +1,11 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 RSpec.describe SolidusAvataxCertified::Request::GetTax, :vcr do
-  let(:order) { create(:avalara_order, line_items_count: 2) }
   subject { described_class.new(order, commit: false, doc_type: 'SalesOrder') }
 
-  before do
-    VCR.use_cassette('order_capture', allow_playback_repeats: true) do
-      order
-    end
-  end
+  let!(:order) { create(:avalara_order, line_items_count: 2) }
 
   describe '#generate' do
     it 'creates a hash' do

@@ -1,6 +1,7 @@
+# frozen_string_literal: true
+
 module SolidusAvataxCertified
   class Engine < Rails::Engine
-    require "solidus_core"
     isolate_namespace Spree
     engine_name 'solidus_avatax_certified'
 
@@ -11,12 +12,10 @@ module SolidusAvataxCertified
       g.test_framework :rspec
     end
 
-    def self.activate
-      Dir.glob(File.join(File.dirname(__FILE__), '../../app/**/*_decorator*.rb')) do |c|
+    config.to_prepare do
+      Dir.glob(File.join(File.dirname(__FILE__), '../../app/decorators/**/*.rb')) do |c|
         Rails.configuration.cache_classes ? require(c) : load(c)
       end
     end
-
-    config.to_prepare &method(:activate).to_proc
   end
 end

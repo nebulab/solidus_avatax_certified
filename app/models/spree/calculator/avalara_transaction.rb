@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 module Spree
   class Calculator::AvalaraTransaction < Calculator::DefaultTax
     def self.description
-      Spree.t(:avalara_transaction_calculator)
+      "Avalara Transaction Calculator"
     end
 
-    def compute_order(order)
+    def compute_order(_order)
       raise 'Spree::AvalaraTransaction is designed to calculate taxes at the shipment and line-item levels.'
     end
 
@@ -22,8 +24,8 @@ module Spree
     alias_method :compute_shipment, :compute_shipment_or_line_item
     alias_method :compute_line_item, :compute_shipment_or_line_item
 
-    def compute_shipping_rate(shipping_rate)
-      return 0
+    def compute_shipping_rate(_shipping_rate)
+      0
     end
 
     private
@@ -60,7 +62,6 @@ module Spree
       end
     end
 
-
     def long_cache_key(order)
       key = order.avatax_cache_key
       key << order.tax_address.try(:cache_key)
@@ -70,7 +71,7 @@ module Spree
       order.shipments.each do |shipment|
         key << shipment.avatax_cache_key
       end
-      order.all_adjustments.non_tax do |adj|
+      order.all_adjustments.non_tax.each do |adj|
         key << adj.avatax_cache_key
       end
       key
@@ -88,7 +89,7 @@ module Spree
       prev_tax_amount = prev_tax_amount(item)
 
       return prev_tax_amount if avalara_response.nil?
-      return 0 if avalara_response[:totalTax] == 0.0
+      return 0 if avalara_response['totalTax'] == 0.0
 
       avalara_response['lines'].each do |line|
         if line['lineNumber'] == "#{item.id}-#{item.avatax_line_code}"

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'net/http'
 require 'base64'
@@ -10,7 +12,7 @@ module SolidusAvataxCertified
     def initialize(order)
       @order = order
       @ship_address = order.ship_address
-      @origin_address = JSON.parse(Spree::Avatax::Config.origin)
+      @origin_address = JSON.parse(::Spree::Avatax::Config.origin)
       @addresses = {}
 
       build_addresses

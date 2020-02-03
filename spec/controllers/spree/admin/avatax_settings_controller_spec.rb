@@ -1,25 +1,24 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
-describe Spree::Admin::AvataxSettingsController, :type => :controller do
-
+describe Spree::Admin::AvataxSettingsController, type: :controller do
   stub_authorization!
 
   describe '/avatax_settings' do
     subject { get :show }
-    it { should be_success }
-  end
 
-  describe '/avatax_settings/edit' do
-    subject { get :edit }
-    it { should be_success }
+    it { is_expected.to be_successful }
   end
 
   describe '/avatax_settings/download_avatax_log' do
+    subject { get :download_avatax_log }
+
     before { File.new("#{Rails.root}/log/avatax.log", 'w') }
+
     after { File.delete("#{Rails.root}/log/avatax.log") }
 
-    subject { get :download_avatax_log }
-    it { should be_success }
+    it { is_expected.to be_successful }
   end
 
   describe '/avatax_settings/erase_data' do
@@ -44,30 +43,8 @@ describe Spree::Admin::AvataxSettingsController, :type => :controller do
 
     it 'flashes message' do
       subject
-      response.should be_success
-      flash.should_not be_nil
+      expect(response).to be_successful
+      expect(flash).not_to be_nil
     end
-  end
-
-  describe '#update' do
-    let(:params) do
-      {
-        address: {
-          Line1: "",
-          Line2: "",
-          City: "",
-          Region: "",
-          PostalCode: "",
-          Country: ""
-        },
-        settings: {
-          account: '123456789',
-          address_validation_enabled_countries: []
-        }
-      }
-    end
-    subject { put :update, params: params }
-
-    it { is_expected.to redirect_to(spree.admin_avatax_settings_path) }
   end
 end

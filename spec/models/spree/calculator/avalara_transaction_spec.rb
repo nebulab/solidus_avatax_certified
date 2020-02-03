@@ -1,9 +1,12 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 describe Spree::Calculator::AvalaraTransaction, :vcr do
   let(:included_in_price) { false }
   let(:tax_category) { Spree::TaxCategory.find_or_create_by(name: 'Clothing', tax_code: 'P0000000') }
   let(:calculator) { Spree::TaxRate.find_by(name: 'Tax').calculator }
+  let!(:order) { create(:avalara_order, line_items_price: 10, shipment_cost: 100, tax_included: included_in_price) }
   let(:line_item) { order.line_items.first }
 
   describe '#description' do
@@ -13,33 +16,33 @@ describe Spree::Calculator::AvalaraTransaction, :vcr do
   end
 
   context '#compute', :vcr do
-    let!(:order) { create(:avalara_order, line_items_price: 10, shipment_cost: 100, tax_included: included_in_price) }
-
     context 'when given an order' do
       before do
-        allow(order).to receive_messages :line_items => [line_item]
+        allow(order).to receive_messages line_items: [line_item]
       end
 
       context 'when computing an order' do
-        it 'should raise error' do
-          expect{calculator.compute(order)}.to raise_error(RuntimeError)
+        it 'raises error' do
+          expect{ calculator.compute(order) }.to raise_error(RuntimeError)
         end
       end
     end
+
     context 'when computing a line item' do
       context 'when tax is included in price' do
         let(:included_in_price) { true }
-        it 'should be equal to the item pre-tax total * rate' do
+
+        it 'is equal to the item pre-tax total * rate' do
           expect(calculator.compute(line_item)).to eq(0.38)
         end
 
-        it 'should be equal to the previous included_tax_total is order is at cart' do
+        it 'is equal to the previous included_tax_total is order is at cart' do
           order.state = 'cart'
           line_item.included_tax_total = 0.1
           expect(calculator.compute(line_item)).to eq(0.1)
         end
 
-        it 'should be equal to the previous included_tax_total is order is at address' do
+        it 'is equal to the previous included_tax_total is order is at address' do
           order.state = 'address'
           line_item.included_tax_total = 0.1
           expect(calculator.compute(line_item)).to eq(0.1)
@@ -47,24 +50,23 @@ describe Spree::Calculator::AvalaraTransaction, :vcr do
       end
 
       context 'when tax is not included in price' do
-
-        it 'should be equal to the item pre-tax total * rate' do
+        it 'is equal to the item pre-tax total * rate' do
           expect(calculator.compute(line_item)).to eq(0.4)
         end
 
-        it 'should be equal to the previous additional_tax_total if order is at cart' do
+        it 'is equal to the previous additional_tax_total if order is at cart' do
           order.state = 'cart'
           line_item.additional_tax_total = 0.1
           expect(calculator.compute(line_item)).to eq(0.1)
         end
 
-        it 'should be equal to the previous additional_tax_total if order is at address' do
+        it 'is equal to the previous additional_tax_total if order is at address' do
           order.state = 'address'
           line_item.additional_tax_total = 0.1
           expect(calculator.compute(line_item)).to eq(0.1)
         end
 
-        it 'should be equal to the previous tax total if preference tax_calculation is false' do
+        it 'is equal to the previous tax total if preference tax_calculation is false' do
           Spree::Avatax::Config.tax_calculation = false
 
           line_item.additional_tax_total = 0.1
@@ -79,21 +81,27 @@ describe Spree::Calculator::AvalaraTransaction, :vcr do
             order.updater.update
           end
 
-          it 'should be equal to the items pre-tax total * rate' do
+          it 'is equal to the items pre-tax total * rate' do
             expect(calculator.compute(line_item)).to eq(0.32)
           end
         end
 
         context 'when the line item is discounted' do
-          let(:promotion) { create(:promotion, :with_line_item_adjustment, adjustment_rate: 2) }
+          let!(:promo_adjustment) { create(:adjustment, adjustable: line_item, order: line_item.order, source: promo_action, amount: -2) }
+          let(:promo_action) { promo.actions[0] }
+          let(:promo) { create(:promotion, :with_line_item_adjustment, apply_automatically: true, adjustment_rate: 2 ) }
 
           before do
-            create(:adjustment, order: order, source: promotion.promotion_actions.first, adjustable: order.line_items.first)
-            order.updater.update
+            line_item.update!(price: 20)
           end
 
-          it 'should be equal to the items pre-tax total * rate' do
-            expect(calculator.compute(line_item)).to eq(0.32)
+          it 'is equal to the items pre-tax total * rate' do
+            expect(calculator.compute(line_item)).to eq(0.72)
+          end
+
+          it 'with quantity of 2' do
+            line_item.update!(quantity: 2)
+            expect(calculator.compute(line_item)).to eq(1.52)
           end
         end
       end
@@ -102,25 +110,29 @@ describe Spree::Calculator::AvalaraTransaction, :vcr do
     context 'when given a shipment' do
       let(:shipping_rate) { Spree::TaxRate.find_by(name: 'Shipping Tax') }
       let(:shipping_calculator) { Spree::Calculator::AvalaraTransaction.new(calculable: shipping_rate) }
-      let!(:shipment) { order.shipments.first }
+      let(:shipment) { order.shipments.first }
 
       describe 'computing normal shipment' do
-        it 'should be equal 4.0' do
+        it 'is equal 4.0' do
           expect(shipping_calculator.compute(shipment)).to eq(4.0)
         end
       end
 
       describe 'with promotion' do
-        it 'should equal 3.96' do
-          shipment.update_attributes(promo_total: -1)
-          expect(shipping_calculator.compute(shipment)).to eq(3.96)
+        let!(:promo_adjustment) { create(:adjustment, adjustable: shipment, order: order, source: promo_action, amount: -1) }
+        let(:promo_action) { promo.actions[0] }
+        let(:promo) { create(:promotion, :with_line_item_adjustment, adjustment_rate: 1) }
+
+        it 'equals 3.92' do
+          order.updater.update
+          expect(shipping_calculator.compute(shipment)).to eq(3.92)
         end
       end
 
       describe 'when tax is included in price' do
         let(:included_in_price) { true }
 
-        it 'should be equal to 3.85' do
+        it 'is equal to 3.85' do
           expect(shipping_calculator.compute(shipment)).to eq(3.85)
         end
       end
